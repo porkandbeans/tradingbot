@@ -1,14 +1,15 @@
 const SteamUser = require('steam-user');
-//const SteamTotp = require('steam-totp');
+const SteamTotp = require('steam-totp');
 const config = require('./config.json');
 const responses = require('./responses.json');
 
 const client = new SteamUser();
 
 const logOnOptions = {
+    // config.json contains confidential information which has been redacted from github
 	accountName: config.accountName,
 	password: config.password,
-	//twoFactorCode: SteamTotp.generateAuthCode('')
+	twoFactorCode: SteamTotp.generateAuthCode(config['shared-secret'])
 };
 
 client.logOn(logOnOptions);
@@ -16,8 +17,8 @@ client.logOn(logOnOptions);
 client.on('loggedOn', () => {
 	console.log('Bot is now online');
 
-	client.setPersona(SteamUser.EPersonaState.Online);
-	client.gamesPlayed(440)
+	client.setPersona(SteamUser.EPersonaState.Online); // set status online
+	client.gamesPlayed(440) // set status to playing TF2
 });
 
 /* whenever a relationship with a friend changes
@@ -52,7 +53,7 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
 			
         }else{
             //neg them
-			_response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
+            _response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
             client.chatMessage(senderID, _response);
 			
         }
