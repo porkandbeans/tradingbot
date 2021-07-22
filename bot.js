@@ -20,18 +20,25 @@ client.on('loggedOn', () => {
 	client.gamesPlayed(440)
 });
 
+/* whenever a relationship with a friend changes
+    @steamid        the profile which has had a change in relationship
+    @relationship   the change made (2 = invite sent)
+*/
 client.on('friendRelationship', (steamid, relationship) => {
 	if (relationship === 2){
+        // I have been sent a friend request
 		client.addFriend(steamid);
 		client.chatMessage(steamid, "Hello! I am currently unable to trade. Check back soon!");
 	}
 });
 
+/* when I get a chat message
+    @senderID           who sent me the message
+    @receivedMessage    the message I have received, as a string
+    @room               the room where the message was sent (defaults to SteamID if friend message)
+*/
 client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
-    if(receivedMessage.includes("cum")){
-        client.chatMessage(senderID, "Oh, I love cum!");
-    }
-
+    // just jokes at this point
     if(receivedMessage.includes("zerodium")){
         client.chatMessage(senderID, "Sorry, I don't run on PHP.");
     }
@@ -44,7 +51,7 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
             client.chatMessage(senderID, _response);
 			
         }else{
-            //neg the shit out of them
+            //neg them
 			_response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
             client.chatMessage(senderID, _response);
 			
