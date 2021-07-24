@@ -1,10 +1,14 @@
-const SteamUser = require('steam-user');
-const SteamTotp = require('steam-totp');
-const config = require('./config.json');
-const responses = require('./responses.json');
+const SteamUser = require('steam-user'); // used for interfacing with steam
+const SteamTotp = require('steam-totp'); // authenticating with steam-guard
+const Bptf = require('backpacktf'); // check prices on backpack.tf
+const fs = require("fs"); // writing logs
+const d = new Date(); // also for writing logs, pretty much.
+
+const config = require('./config.json'); // secrets
+const responses = require('./responses.json'); // playing with code...
+
 const client = new SteamUser();
-const fs = require("fs");
-const d = new Date();
+
 logFile = "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt";
 
 if(!fs.existsSync(logFile)){
@@ -73,11 +77,21 @@ const logOnOptions = {
 
 client.logOn(logOnOptions);
 
+var bptfData;
+
 client.on('loggedOn', () => {
 	console.log('Bot is now online');
 
 	client.setPersona(SteamUser.EPersonaState.Online); // set status online
 	client.gamesPlayed(440) // set status to playing TF2
+
+    bptfData = Bptf.getCommunityPrices(config['bptf-api'], "440", (err, data)=>{
+        if(err){
+            console.log("Error: " + err.message);
+        }else{
+            console.log(data);
+        }
+    })
 });
 
 /* whenever a relationship with a friend changes
@@ -110,6 +124,7 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
             senderID,
             "Sorry, I don't run on PHP."
         );
+        return;
     }
 
     if(receivedMessage == "!rateme"){
@@ -124,5 +139,29 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
             _response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
             sendMessage(senderID, _response);
         }
+        return;
     }
+
+    
+    if(receivedMessage.startsWith("!getprice ")){
+        //receives user input and replies with the price of an item according to backpack.tf
+        item = receivedMessage.substring("!getprice ".length, receivedMessage.length);
+        if(item != null || item != ""){
+            sendMessage(senderID, "I am now searching for " + item);
+        }else{
+            sendMessage(senderID, "Enter \"!getprice\" followed by the name of the item you want pricechecked.");
+        }
+        return;
+    }
+
+    if(receivedMessage == "!getprice"){
+        sendMessage(
+            senderID,
+            "Enter \"!getprice\" followed by the name of the item you want pricechecked.");
+        sendMessage(
+            senderID,
+            "For example: \"!getprice key\", \"!getprice towering pillar of hats\"");
+        return;
+    }
+    
 });
