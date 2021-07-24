@@ -2,8 +2,67 @@ const SteamUser = require('steam-user');
 const SteamTotp = require('steam-totp');
 const config = require('./config.json');
 const responses = require('./responses.json');
-
 const client = new SteamUser();
+const fs = require("fs");
+const d = new Date();
+logFile = "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt";
+
+if(!fs.existsSync(logFile)){
+    // create a log file, if one doesn't exist
+    fs.writeFile(
+        logFile, 
+        ("Log created on " + getDateFormatted(true) + "\n"), (err) => {
+            if (err) throw err;
+            console.log('Log file created.');
+        });
+}
+
+/*
+    sends a message to a user and records it
+    @message    the message to be sent
+    @steamID    the user we are sending it to
+*/
+function sendMessage(steamID, message){
+    fs.appendFile(
+        logFile, 
+        ("sent: " + getDateFormatted(false) + "[" + steamID + "]" + message + "\n"),
+        (err) =>{
+            if (err) throw err;
+            console.log("(me) " + steamID + "-" + message);
+        }
+    );
+    client.chatMessage(steamID, message);
+}
+
+function logMessage(steamID, message){
+    fs.appendFile(logFile, 
+        ("received: " + getDateFormatted(false) + "[" + steamID + "]" + message + "\n"),
+        (err) =>{
+            if(err) throw err;
+            console.log(steamID + "-" + message);
+        }
+    );
+}
+
+/*
+    returns the current date, formatted, as a string
+    @year       if set to true, the year will be included
+*/
+function getDateFormatted(year){
+    if (year == true){
+        returnMe = d.getFullYear() + "/" + 
+        (d.getMonth() + 1) + "/" + 
+        d.getDate() + "_" + 
+        d.getHours() + ":" +
+        d.getMinutes();
+    }else{
+        returnMe = (d.getMonth() + 1) + "/" + 
+        d.getDate() + "_" + 
+        d.getHours() + ":" +
+        d.getMinutes();
+    }
+    return returnMe;
+}
 
 const logOnOptions = {
     // config.json contains confidential information which has been redacted from github
@@ -29,7 +88,10 @@ client.on('friendRelationship', (steamid, relationship) => {
 	if (relationship === 2){
         // I have been sent a friend request
 		client.addFriend(steamid);
-		client.chatMessage(steamid, "Hello! I am currently unable to trade. Check back soon!");
+        sendMessage(
+            steamid,
+            "Hello! I am currently unable to trade. Please check back later."
+        );
 	}
 });
 
@@ -39,9 +101,15 @@ client.on('friendRelationship', (steamid, relationship) => {
     @room               the room where the message was sent (defaults to SteamID if friend message)
 */
 client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
+    // log it
+    logMessage(senderID, receivedMessage);
+    
     // just jokes at this point
     if(receivedMessage.includes("zerodium")){
-        client.chatMessage(senderID, "Sorry, I don't run on PHP.");
+        sendMessage(
+            senderID,
+            "Sorry, I don't run on PHP."
+        );
     }
 
     if(receivedMessage == "!rateme"){
@@ -49,13 +117,12 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) =>{
         if(d12 >= 6){
             //positive response
 			_response = responses.positives[Math.floor(Math.random() * responses.positives.length)];
-            client.chatMessage(senderID, _response);
+            sendMessage(senderID, _response);
 			
         }else{
             //neg them
             _response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
-            client.chatMessage(senderID, _response);
-			
+            sendMessage(senderID, _response);
         }
     }
 });
