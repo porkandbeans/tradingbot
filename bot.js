@@ -1,4 +1,3 @@
-console.log("refactor");
 const SteamUser = require('steam-user'); // used for interfacing with steam
 const SteamTotp = require('steam-totp'); // authenticating with steam-guard
 const Bptf = require('backpacktf'); // check prices on backpack.tf
@@ -18,7 +17,7 @@ const client = new SteamUser();
     @steamID    the user we are sending it to
 */
 function sendMessage(steamID, message) {
-    logs.logMessage(steamID, message);
+    logs.logSend(steamID, message);
     client.chatMessage(steamID, message);
 }
 
@@ -99,6 +98,7 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
         //receives user input and replies with the price of an item according to backpack.tf
         item = receivedMessage.substring("!getprice ".length, receivedMessage.length);
         if (item != null || item != "") {
+            // TODO this
             sendMessage(senderID, "I am now searching for " + item);
         } else {
             sendMessage(senderID, "Enter \"!getprice\" followed by the name of the item you want pricechecked.");
