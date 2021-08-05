@@ -60,8 +60,18 @@ function getDateFormatted(year) {
     return returnMe;
 }
 
+// if I want to manually put something in the logs when something happens
+// for instance, a price update
+function append(comment){
+    fs.appendFile(logFile, comment, (err) => {
+        if (err) throw err;
+        console.log(comment);
+    })
+}
+
 module.exports = {
     checkLogExists,
     logSend,
-    logReceive
+    logReceive,
+    append
 };

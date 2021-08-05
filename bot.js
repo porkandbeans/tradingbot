@@ -7,19 +7,11 @@ const d = new Date(); // also for writing logs, pretty much.
 var logs = require("./logging.js");
 logs.checkLogExists();
 
+const chat = require('./chat.js');
+
 const config = require('./config.json'); // secrets
-const responses = require('./responses.json'); // playing with code...
 
 const client = new SteamUser();
-
-/*  sends a message to a user and records it
-    @message    the message to be sent
-    @steamID    the user we are sending it to
-*/
-function sendMessage(steamID, message) {
-    logs.logSend(steamID, message);
-    client.chatMessage(steamID, message);
-}
 
 const logOnOptions = {
     // config.json contains confidential information which has been redacted from github
@@ -30,7 +22,7 @@ const logOnOptions = {
 
 client.logOn(logOnOptions);
 
-var bptfData;
+var bptfData = require('./BPTF.json');
 
 client.on('loggedOn', () => {
     console.log('Bot is now online');
@@ -44,6 +36,15 @@ client.on('loggedOn', () => {
         }
     })*/
 });
+
+/*  sends a message to a user and records it
+    @message    the message to be sent
+    @steamID    the user we are sending it to
+*/
+function sendMessage(steamID, message) {
+    logs.logSend(steamID, message);
+    client.chatMessage(steamID, message);
+}
 
 /* whenever a relationship with a friend changes
     @steamid        the profile which has had a change in relationship
@@ -60,7 +61,8 @@ client.on('friendRelationship', (steamid, relationship) => {
     }
 });
 
-/* when I get a chat message
+/* 
+when I get a chat message
     @senderID           who sent me the message
     @receivedMessage    the message I have received, as a string
     @room               the room where the message was sent (defaults to SteamID if friend message)
@@ -68,62 +70,93 @@ client.on('friendRelationship', (steamid, relationship) => {
 client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
     // log it
     logs.logReceive(senderID, receivedMessage);
-
-    // just jokes at this point
-    if (receivedMessage.includes("zerodium")) {
-        sendMessage(
-            senderID,
-            "Sorry, I don't run on PHP."
-        );
-        return;
-    }
-
-    // if the user asks to be rated, the bot will berate or compliment them based on a 50/50 dice roll and pull responses from responses.json
-    // no, this doesn't need to exist, well spotted.
-    if (receivedMessage == "!rateme") {
-        d12 = Math.floor(Math.random() * 12);
-        if (d12 >= 6) {
-            //positive response
-            _response = responses.positives[Math.floor(Math.random() * responses.positives.length)];
-            sendMessage(senderID, _response);
-
-        } else {
-            //neg them
-            _response = responses.negatives[Math.floor(Math.random() * responses.negatives.length)];
-            sendMessage(senderID, _response);
+    response = chat.checkMessage(receivedMessage);
+    if(response != null){
+        switch (response){
+            case 0:
+                // !help
+                sendMessage(senderID, "!help - shows this help menu");
+                sendMessage(senderID, "!rateme - I will give your steam profile a personalised review");
+                sendMessage(senderID, "!price [ITEM NAME] - check the backpack.tf price of an item (replace [ITEM NAME] with the name of the item you want to check)");
+            case 1:
+                // !update
+                updatePrices(senderID);
+                break;
+            case 2:
+                // !price
+                item = receivedMessage.substring("!price ".length, receivedMessage.length);
+                getPrice(senderID, item);
+                break;
+            default:
+                // response already defined
+                sendMessage(senderID, response)
         }
-        return;
+    }else{
+        // if the function returned without a value
+        sendMessage(senderID, "I'm sorry. My responses are limited. You must ask the right questions. (try !help)");
     }
+});
 
+function getPrice(sender, item){
+
+    bpitem = bptfData.response.items[item];
+
+    if(bpitem != null){
+
+        /*
+        This doesn't work yet.
+
+        There's so much data in a vague and hard to understand format
+        spat out by this backpack.tf module that
+        I'm beginning to wonder if it's even worth utilising at this point
+
+        probably not
+
+        probably gonna delete this function altogether
+
+        oh well! pushing to github.
+        */
+
+        sendMessage(sender, "I found the item!");
+        sendMessage(sender, "A regular " + item + " is worth " + 
+            bpitem.prices[6].value +" "+ bpitem.prices[6].currency);
+        
+        console.log(bpitem.prices[6].value + " and " + bpitem.prices[6].currency)
+    }else{
+        sendMessage(sender, "Sorry, but I couldn't find the item. You can ask me again though? (capital letters matter!)");
+    }
+}
+
+function updatePrices(senderID){
     // when called, this gets a shitload (224,152 lines) of data from backpack.tf
     // and stores it in BPTF.json
     // if BPTF.json already exists, it overwrites
     // (hence being !update and not !get)
     // I also made it only listen for this command from me, since
     // it could be abused to spam the API or guzzle up my memory
-    if(receivedMessage == "!update"){
-        if(senderID == config['my-id']){
-            fs.writeFile("BPTF.json", "", (err) =>{
-                if (err) throw err;
-                console.log("Nullified BPTF.json");
-            })
+    if(senderID == config['my-id']){
+        fs.writeFile("BPTF.json", "", (err) =>{
+            if (err) throw err;
+            console.log("Nullified BPTF.json");
+        })
 
-            bptf.getCommunityPrices(
-                config['bptf-api'],
-                "440",
-                (err, data) => {
-                    if(err) throw err;
-                    fs.writeFile(
-                        "BPTF.json",
-                        JSON.stringify(data, null, 1),
-                        (err) => {
-                            if (err) throw err;
-                            console.log("file written");
-                        })
-                })
-            sendMessage(senderID, "updated my prices.");
-        }else{
-            sendMessage(senderID, "You are not my master!");
-        }
+        bptf.getCommunityPrices(
+            config['bptf-api'],
+            "440",
+            (err, data) => {
+                if(err) throw err;
+                fs.writeFile(
+                    "BPTF.json",
+                    JSON.stringify(data, null, 1),
+                    (err) => {
+                        if (err) throw err;
+                        console.log("file written");
+                    })
+            })
+        sendMessage(senderID, "updated my prices.");
+        logs.append("== PRICES WERE UPDATED ==\n");
+        bptfData = require('./BPTF.json');
+    }else{
+        sendMessage(senderID, "You are not my master!");
     }
-});
+}

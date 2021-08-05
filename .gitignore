@@ -1,7 +1,12 @@
-config.json
 node_modules
 package-lock.json
 package.json
-SteamDesktopAuthenticator
+
+# chat history
 logs/*
+
+# cos it's big like yo mama
 BPTF.json
+
+# secrets
+config.json
