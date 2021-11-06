@@ -1,12 +1,9 @@
 node_modules
 package-lock.json
-package.json
+# package.json I was excluding this because I am silly
 
 # chat history
 logs/*
-
-# cos it's big like yo mama
-BPTF.json
 
 # secrets
 config.json

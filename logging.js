@@ -40,7 +40,7 @@ function logReceive(steamid, message) {
     );
 }
 
-/*
+/**
     returns the current date, formatted, as a string
     @year       if set to true, the year will be included
 */

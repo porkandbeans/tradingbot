@@ -45,7 +45,7 @@ function checkMessage(message){
             return "It sounds like you're asking me a philosophical question about life! Sorry, but I'm not built for that. I'll buy your trading cards though?";
         }
 
-        if(message.includes("hard")){
+        if (message.includes("hard", "penis", "sexy", "sex", "hot")) {
             return "I'm not sure I like this question.";
         }
 
