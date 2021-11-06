@@ -6,7 +6,13 @@ const d = new Date(); // also for writing _logs, pretty much.
 const SteamCommunity = require('steamcommunity');
 const TradeOfferManager = require('steam-tradeoffer-manager');
 
+const _client = new SteamUser();
 const _community = new SteamCommunity();
+const _manager = new TradeOfferManager({
+    steam: _client,
+    community: _community,
+    language: 'en'
+});
 
 var _logs = require("./logging.js");
 _logs.checkLogExists();
@@ -15,20 +21,12 @@ const _chat = require('./chat.js');
 
 const _config = require('./config.json'); // secrets
 
-const _client = new SteamUser();
-
 const logOnOptions = {
     // _config.json contains confidential information which has been redacted from github
     accountName: _config.accountName,
     password: _config.password,
     twoFactorCode: SteamTotp.generateAuthCode(_config['shared-secret'])
 };
-
-const _manager = new TradeOfferManager({
-    steam: _client,
-    community: _community,
-    language: 'en'
-});
 
 _client.logOn(logOnOptions);
 
@@ -38,8 +36,6 @@ _client.on('loggedOn', () => {
     _client.setPersona(SteamUser.EPersonaState.Online); // set status online
     _client.gamesPlayed(440) // set status to playing TF2
 });
-
-
 
 /**
   sends a message to a user and records it in the logs directory
