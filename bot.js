@@ -1,47 +1,47 @@
 const SteamUser = require('steam-user'); // used for interfacing with steam
 const SteamTotp = require('steam-totp'); // authenticating with steam-guard
 const bptf = require('backpacktf'); // check prices on backpack.tf
-const fs = require("fs"); // writing _logs
-const d = new Date(); // also for writing _logs, pretty much.
+const fs = require("fs"); // writing logs
+const d = new Date(); // also for writing logs, pretty much.
 const SteamCommunity = require('steamcommunity');
 const TradeOfferManager = require('steam-tradeoffer-manager');
 
-const _client = new SteamUser();
-const _community = new SteamCommunity();
-const _manager = new TradeOfferManager({
-    steam: _client,
-    community: _community,
+const client = new SteamUser();
+const community = new SteamCommunity();
+const manager = new TradeOfferManager({
+    steam: client,
+    community: community,
     language: 'en'
 });
 
-var _logs = require("./logging.js");
-_logs.checkLogExists();
+var logs = require("./logging.js");
+logs.checkLogExists();
 
-const _chat = require('./chat.js');
+const chat = require('./chat.js');
 
-const _config = require('./config.json'); // secrets
+const config = require('./config.json'); // secrets
 
 const logOnOptions = {
-    // _config.json contains confidential information which has been redacted from github
-    accountName: _config.accountName,
-    password: _config.password,
-    twoFactorCode: SteamTotp.generateAuthCode(_config['shared-secret'])
+    // config.json contains confidential information which has been redacted from github
+    accountName: config.accountName,
+    password: config.password,
+    twoFactorCode: SteamTotp.generateAuthCode(config['shared-secret'])
 };
 
-_client.logOn(logOnOptions);
+client.logOn(logOnOptions);
 
-_client.on('loggedOn', () => {
+client.on('loggedOn', () => {
     console.log('Bot is now online');
 
-    _client.setPersona(SteamUser.EPersonaState.Online); // set status online
-    _client.gamesPlayed(440) // set status to playing TF2
+    client.setPersona(SteamUser.EPersonaState.Online); // set status online
+    client.gamesPlayed(440) // set status to playing TF2
 });
 
 // === TRADING STUFF ===
-_client.on('webSession', (sessionid, cookies) => {
+client.on('webSession', (sessionid, cookies) => {
     console.log("web session");
-    _community.setCookies(cookies);
-    _manager.setCookies(cookies, null, err => {
+    community.setCookies(cookies);
+    manager.setCookies(cookies, null, err => {
         if (err) {
             console.log("Failed to obtain API key.");
             console.log(err);
@@ -49,12 +49,12 @@ _client.on('webSession', (sessionid, cookies) => {
         }
     });
 
-    _community.startConfirmationChecker(10000, _config['identity-secret']);
+    community.startConfirmationChecker(10000, config['identity-secret']);
 });
 
-_manager.on('newOffer', offer => {
+manager.on('newOffer', offer => {
     console.log("new offer");
-    if (offer.partner.getSteamID64() === _config['my-id']) {
+    if (offer.partner.getSteamID64() === config['my-id']) {
         console.log("received offer...");
         offer.accept((err, status) => {
             if (err) {
@@ -76,8 +76,8 @@ _manager.on('newOffer', offer => {
     @param  steamID    the user we are sending it to
 */
 function sendMessage(steamID, message) {
-    _logs.logSend(steamID, message);
-    _client.chatMessage(steamID, message);
+    logs.logSend(steamID, message);
+    client.chatMessage(steamID, message);
 }
 
 /**
@@ -85,44 +85,36 @@ function sendMessage(steamID, message) {
     @steamid        the profile which has had a change in relationship
     @relationship   the change made (2 = invite sent)
 */
-_client.on('friendRelationship', (steamid, relationship) => {
+client.on('friendRelationship', (steamid, relationship) => {
     if (relationship === 2) {
         // I have been sent a friend request
-        _client.addFriend(steamid);
+        client.addFriend(steamid);
         sendMessage(
             steamid,
-            "Hello! I am currently unable to trade. Please check back later."
+            "Hello! I am not currently open for trading. Please check back later."
         );
     }
 });
 
 /**
-when I get a _chat message
+when I get a chat message
     @senderID           who sent me the message
     @receivedMessage    the message I have received, as a string
     @room               the room where the message was sent (defaults to SteamID if friend message)
 */
-_client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
+client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
     // log it
-    _logs.logReceive(senderID, receivedMessage);
-    response = _chat.checkMessage(receivedMessage);
+    logs.logReceive(senderID, receivedMessage);
+    response = chat.checkMessage(receivedMessage);
     if (!isNaN(response)) { // make sure response has been sent back as a number and not a string
         switch (response){
             case 0:
                 // !help
                 sendMessage(senderID, "!help - shows this help menu");
                 sendMessage(senderID, "!rateme - I will give your steam profile a personalised review");
-
-            /*case 1:
-                // !update
-                //updatePrices(senderID);
                 break;
-            case 2:
-                // !price
-                /*item = receivedMessage.substring("!price ".length, receivedMessage.length);
-                getPrice(senderID, item);*/
-
-                break;
+            case 1:
+                //don't actually do anything...
         }
     }else{
         // either I've already decided what the message is, or I just couldn't parse whatever was sent to me
@@ -134,59 +126,44 @@ _client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
     }
 });
 
+// === TRADING STUFF ===
+client.on('webSession', (sessionid, cookies) => {
+    console.log("web session");
+    community.setCookies(cookies);
+    manager.setCookies(cookies, null, err => {
+        if (err) {
+            console.log("Failed to obtain API key.");
+            console.log(err);
+            process.exit();
+        }
+    });
+
+    community.startConfirmationChecker(10000, config['identity-secret']);
+});
+
+manager.on('newOffer', offer => {
+    processTradeOffer(offer);
+});
 
 
-
-
-
-
-/* === DEPRECATED STUFF ===
-function getPrice(sender, item){
-
-    bpitem = bptfData.response.items[item];
-
-    if(bpitem != null){
-
-        sendMessage(sender, "I found the item!");
-        sendMessage(sender, "A regular " + item + " is worth " + 
-            bpitem.prices[6].value +" "+ bpitem.prices[6].currency);
-        
-        console.log(bpitem.prices[6].value + " and " + bpitem.prices[6].currency)
-    }else{
-        sendMessage(sender, "Sorry, but I couldn't find the item. You can ask me again though? (capital letters matter!)");
+function processTradeOffer(offer){
+    console.log("new offer");
+    sender = offer.partner.getSteamID64();
+    if (sender === config['my-id']) {
+        console.log("received offer...");
+        logs.append("Trade offer received from " + offer.partner.getSteamID64());
+        sendMessage(sender, "Oh, hi boss. I'm about to accept the offer.");
+        offer.accept((err, status) => {
+            if (err) {
+                console.log(err);
+            } else {
+                logs.append("Trade offer accepted from " + offer.partner.getSteamID64());
+                console.log(`Accepted offer. Status: ${status}.`);
+                sendMessage(sender, "Donezo! Offer accepted.");
+            }
+        });
+    } else {
+        console.log("not master");
     }
 }
-
-function updatePrices(senderID){
-    // when called, this gets a shitload (224,152 lines) of data from backpack.tf
-    // and stores it in BPTF.json
-    // if BPTF.json already exists, it overwrites
-    // (hence being !update and not !get)
-    // I also made it only listen for this command from me, since
-    // it could be abused to spam the API or guzzle up my memory
-    if(senderID == _config['my-id']){
-        fs.writeFile("BPTF.json", "", (err) =>{
-            if (err) throw err;
-            console.log("Nullified BPTF.json");
-        })
-
-        bptf.getCommunityPrices(
-            _config['bptf-api'],
-            "440",
-            (err, data) => {
-                if(err) throw err;
-                fs.writeFile(
-                    "BPTF.json",
-                    JSON.stringify(data, null, 1),
-                    (err) => {
-                        if (err) throw err;
-                        console.log("file written");
-                    })
-            })
-        sendMessage(senderID, "updated my prices.");
-        _logs.append("== PRICES WERE UPDATED ==\n");
-        bptfData = require('./BPTF.json');
-    }else{
-        sendMessage(senderID, "You are not my master!");
-    }
-}*/
+// === END OF TRADING STUFF ===

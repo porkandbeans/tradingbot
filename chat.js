@@ -6,20 +6,24 @@ const inputs = require('./inputs.json');
 const logs = require('./logging.js');
 
 
+/**
+ * 
+ * @param message the message to check
+ * @returns either an int, or a full-blown response as a string
+ */
 function checkMessage(message){
     message = message.toLowerCase(); // lower-case the string so as not to confuse the robot's tiny mind
-
     
     if(message.startsWith("!help")){
         return 0;
     }
 
-    if(message == "!update"){
+    if(message.startsWith("[tradeoffer")){
         return 1;
     }
 
-    if(message.startsWith("!price ")){
-        return 2;
+    if(message == "good robot"){
+        return "<3";
     }
 
     // past this point, it's all nonsense.
@@ -57,7 +61,10 @@ function checkMessage(message){
     }
 }
 
-// returns a string containing the response
+/**
+ * 
+ * @returns string containing a randomly-chosen positive or negative review for the user
+ */
 function rateUser(){
     d12 = Math.floor(Math.random() * 12);
     if (d12 >= 6) {

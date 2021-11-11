@@ -2,8 +2,8 @@
   "dependencies": {
     "backpacktf": "^0.3.0",
     "steam-totp": "^2.1.1",
-    "steam-tradeoffer-manager": "^2.10.3",
-    "steam-user": "^4.20.0",
+    "steam-tradeoffer-manager": "^2.10.4",
+    "steam-user": "^4.20.2",
     "steamcommunity": "^3.43.1"
   }
 }
