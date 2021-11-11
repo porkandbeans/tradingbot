@@ -37,6 +37,39 @@ _client.on('loggedOn', () => {
     _client.gamesPlayed(440) // set status to playing TF2
 });
 
+// === TRADING STUFF ===
+_client.on('webSession', (sessionid, cookies) => {
+    console.log("web session");
+    _community.setCookies(cookies);
+    _manager.setCookies(cookies, null, err => {
+        if (err) {
+            console.log("Failed to obtain API key.");
+            console.log(err);
+            process.exit();
+        }
+    });
+
+    _community.startConfirmationChecker(10000, _config['identity-secret']);
+});
+
+_manager.on('newOffer', offer => {
+    console.log("new offer");
+    if (offer.partner.getSteamID64() === _config['my-id']) {
+        console.log("received offer...");
+        offer.accept((err, status) => {
+            if (err) {
+                console.log(err);
+            } else {
+                console.log(`Accepted offer. Status: ${status}.`);
+            }
+        });
+    } else {
+        console.log("not master");
+    }
+});
+// === END OF TRADING STUFF ===
+
+
 /**
   sends a message to a user and records it in the logs directory
     @param  message    the message to be sent
@@ -101,37 +134,7 @@ _client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
     }
 });
 
-// === TRADING STUFF ===
-_client.on('webSession', (sessionid, cookies) => {
-    console.log("web session");
-    _community.setCookies(cookies);
-    _manager.setCookies(cookies, null, err => {
-        if (err) {
-            console.log("Failed to obtain API key.");
-            console.log(err);
-            process.exit();
-        }
-    });
 
-    _community.startConfirmationChecker(10000, _config['identity-secret']);
-});
-
-_manager.on('newOffer', offer => {
-    console.log("new offer");
-    if (offer.partner.getSteamID64() === _config['my-id']) {
-        console.log("received offer...");
-        offer.accept((err, status) => {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log(`Accepted offer. Status: ${status}.`);
-            }
-        });
-    } else {
-        console.log("not master");
-    }
-});
-// === END OF TRADING STUFF ===
 
 
 
