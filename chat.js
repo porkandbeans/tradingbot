@@ -14,12 +14,12 @@ function checkMessage(message){
         return 0;
     }
 
-    if(message == "!update"){
+    if(message.startsWith("[tradeoffer")){
         return 1;
     }
 
-    if(message.startsWith("!price ")){
-        return 2;
+    if(message == "good robot"){
+        return "<3";
     }
 
     // past this point, it's all nonsense.
