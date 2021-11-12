@@ -112,6 +112,8 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
                 // !help
                 sendMessage(senderID, "!help - shows this help menu");
                 sendMessage(senderID, "!rateme - I will give your steam profile a personalised review");
+                sendMessage(senderID, "!source - view my source code!");
+                sendMessage(senderID, "!about - what am I?");
                 break;
             case 1:
                 //don't actually do anything...
@@ -148,13 +150,14 @@ manager.on('newOffer', offer => {
 
 function processTradeOffer(offer){
     console.log("new offer");
+    logs.append("Trade offer received from " + offer.partner.getSteamID64() + "\n");
     sender = offer.partner.getSteamID64();
     if (sender === config['my-id']) {
-        console.log("received offer...");
-        logs.append("Trade offer received from " + offer.partner.getSteamID64());
+        // received trade offer from admin
         sendMessage(sender, "Oh, hi boss. I'm about to accept the offer.");
         offer.accept((err, status) => {
             if (err) {
+                logs.append("error accepting offer from admin: " + err);
                 console.log(err);
             } else {
                 logs.append("Trade offer accepted from " + offer.partner.getSteamID64());
@@ -162,8 +165,30 @@ function processTradeOffer(offer){
                 sendMessage(sender, "Donezo! Offer accepted.");
             }
         });
+    } else if (offer.itemsToGive.length === 0) {
+        // accept the donation
+        offer.accept((err, status) => {
+            if (err) {
+                logs.append("Error accepting donation: " + err);
+                console.log("Error accepting donation: " + err);
+                sendMessage(sender, "Uh-oh! there was an error accepting your donation. Sorry about this... If it persists, please contact GoKritz https://steamcommunity.com/id/Voter96/");
+            } else {
+                logs.append("Accepted a donation from " + sender + "\n");
+                sendMessage(sender, "Thank you for the donation! <3");
+            }
+        });
     } else {
-        console.log("not master");
+        // they want our stuff
+        offer.decline(err => {
+            if (err) {
+                logs.append("Error declining tradeoffer: " + err);
+                console.log("Error declining Tradeoffer: " + err);
+                sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Please contact GoKritz https://steamcommunity.com/id/Voter96/");
+            } else {
+                logs.append("declined offer where items would be removed from the inventory from " + sender);
+                sendMessage(sender, "Sorry, I am currently in development and not yet ready to be making trades with strangers. Your offer was declined. Check back later though!");
+            }
+        })
     }
 }
 // === END OF TRADING STUFF ===

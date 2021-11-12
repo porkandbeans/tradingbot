@@ -22,6 +22,14 @@ function checkMessage(message){
         return 1;
     }
 
+    if (message.startsWith("!source")) {
+        return "I am open source. View my source code at https://github.com/porkandbeans/tradingbot";
+    }
+
+    if (message.startsWith("!about")) {
+        return "I am a trading robot. I was built by GoKritz (https://steamcommunity.com/id/Voter96/). At some point in the near future, I will have a website. For now, I am going to be accepting trading cards for .33 and selling them for .44. Hopefully, you will be able to buy and sell TF2/CS:GO/Dota2 items from me using Monero - a privacy-focused cryptocurrency with miniscule transaction fees. This is why I exist. GoKritz wanted to buy TF2 keys for Monero, but there were no vendors. So he made one. Me.";
+    }
+
     if(message == "good robot"){
         return "<3";
     }
