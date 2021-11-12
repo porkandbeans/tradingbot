@@ -19,7 +19,7 @@ function checkMessage(message){
     }
 
     if(message.startsWith("[tradeoffer")){
-        return 1;
+        return "Give me a moment to process this offer...";
     }
 
     if (message.startsWith("!source")) {

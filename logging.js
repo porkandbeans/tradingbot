@@ -100,5 +100,6 @@ module.exports = {
     checkLogExists,
     logSend,
     logReceive,
-    append
+    append,
+    getDateFormatted
 };
