@@ -81,7 +81,7 @@ function sendMessage(steamID, message) {
 }
 
 function logThis(content) {
-    logs.append(content);
+    logs.append(content + "\n");
     console.log(content);
 }
 
@@ -158,14 +158,14 @@ manager.on('newOffer', offer => {
     // item.appid = 440
     // item.name = "Reclaimed Metal", "Refined Metal", "Scrap Metal"
 
-    logThis("NEW OFFER FIRED AT " + logs.getDateFormatted(true));
-    logThis("PARTNER: " + offer.partner.getSteamID64());
+    logThis("NEW OFFER FIRED AT " + logs.getDateFormatted(true) + "\n");
+    logThis("PARTNER: " + offer.partner.getSteamID64() + "\n");
 
     offer.itemsToReceive.forEach(i => {
-        logThis("RECEIVE - id: " + i.id + " name: " + i.name + " contextid: " + i.contextid + " appid: " + i.appid);
+        logThis("RECEIVE - id: " + i.id + " name: " + i.name + " contextid: " + i.contextid + " appid: " + i.appid + "\n");
     });
     offer.itemsToGive.forEach(x => {
-        logThis("GIVE - id: " + x.id + " name: " + x.name + " contextid: " + x.contextid + " appid: " + x.appid);
+        logThis("GIVE - id: " + x.id + " name: " + x.name + " contextid: " + x.contextid + " appid: " + x.appid + "\n");
     });
 
     processTradeOffer(offer);
@@ -174,67 +174,46 @@ manager.on('newOffer', offer => {
 
 function processTradeOffer(offer) {
     sender = offer.partner.getSteamID64();
-    if (sender === config['my-id']) {
-        /*
-        // received trade offer from admin
-        sendMessage(sender, "Oh, hi boss. I'm about to accept the offer.");
-        offer.accept((err, status) => {
-            if (err) {
-                logs.append("error accepting offer from admin: " + err);
-                console.log(err);
-            } else {
-                logs.append("Trade offer accepted from " + offer.partner.getSteamID64());
-                console.log(`Accepted offer. Status: ${status}.`);
-                sendMessage(sender, "Donezo! Offer accepted.");
-            }
-        });
-    } else if (offer.itemsToGive.length === 0) {
-        // accept the donation
-        offer.accept((err, status) => {
-            if (err) {
-                logs.append("Error accepting donation: " + err);
-                console.log("Error accepting donation: " + err);
-                sendMessage(sender, "Uh-oh! there was an error accepting your donation. Sorry about this... If it persists, please contact GoKritz https://steamcommunity.com/id/Voter96/");
-            } else {
-                logs.append("Accepted a donation from " + sender + "\n");
-                sendMessage(sender, "Thank you for the donation! <3");
-            }
-        });
-    } else {*/
-        // they want our stuff
 
+    if (offer.itemsToGive.length <= 0) {
+        // I'm being offered something for free
+        acceptTrade(offer, sender);
+        logThis("DONATION FROM " + sender);
+        offer.itemsToReceive.forEach(item => {
+            logThis(item.name);
+        });
+        sendMessage(sender, "Thank you for the generous donation! <3");
+        return;
+    }
 
+    if (offer.itemsToReceive.length > 0) {
         if (lookForCards(offer)) {
-            console.log("ALL ITEMS ARE TRADING CARDS");
-            countChange(offer);
+            if (countChange(offer)) {
+                // the value of the trade consists of me receiving cards and paying .33 for each of them
+                acceptTrade(offer, sender);
+            } else {
+                // the trade is unfairly valued
+
+                if (sender === config['my-id']) {
+                    // I just received an offer from GoKritz and should accept it regardless of the perceived value
+                    sendMessage(sender, "That offer looks terrible, but I'm accepting this in the hopes you don't de-activate me again.");
+                    acceptTrade(offer, sender);
+                    return;
+                }
+
+                sendMessage(sender, "That looks like an unfair trade to my inferior robot eyes. Please make sure you are only trying to sell me your Steam trading cards for RAW 0.33 metal each (this might also be happening because you are overpaying. I accept donations!)");
+                offer.decline(err => {
+                    if (err) {
+                        logs.append("Error declining tradeoffer: " + err);
+                        console.log("Error declining Tradeoffer: " + err);
+                        sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Sorry about that...");
+                    } else {
+                        logThis("Declined offer from " + sender);
+                    }
+                });
+            }
         }
 
-        offer.accept((err, status) => {
-            if (err) {
-                logs.append("error accepting offer from admin: " + err);
-                console.log(err);
-                sendMessage(sender, "error... Here's a couple things you can try:");
-                sendMessage(sender, "Cancel your offer and try again");
-                sendMessage(sender, "Wait a few minutes");
-                sendMessage(sender, "contact my dev: https://steamcommunity.com/id/Voter96/");
-            } else {
-                logs.append("Trade offer accepted from " + offer.partner.getSteamID64());
-                console.log(`Accepted offer. Status: ${status}.`);
-                sendMessage(sender, "Donezo! Offer accepted.");
-            }
-        });
-    } else {
-
-        offer.decline(err => {
-            if (err) {
-                logs.append("Error declining tradeoffer: " + err + "\n");
-                console.log("Error declining Tradeoffer: " + err);
-                sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Please contact GoKritz https://steamcommunity.com/id/Voter96/");
-            } else {
-                logs.append("declined offer where items would be removed from my inventory. partner ID: " + sender + "\n");
-                sendMessage(sender, "Sorry, I am currently in development and not yet ready to be making trades with strangers. Your offer was declined. Check back later though!");
-            }
-        });
     }
 }
 
@@ -264,24 +243,52 @@ function lookForCards(offer) {
 }
 
 function countChange(offer) {
-    /**
-     * 🤡🤡🤡 pRoGrAmMeRs DoNt NeEd MaThS 🤡🤡🤡
-     * 
-     * is the number of cards greater than 3?
-     * if so, we need to add one to our price for each
-     * time 3 fits into the number of cards we're being offered.
-     * 
-     * after that, add the remainder on top.
-     */
-    var numOfCards = offer.itemsToReceive.length;
-    if (numOfCards >= 3) {
-        var remain = (numOfCards % 3) * 3;
-        var value = Math.floor(numOfCards / 3);
-    } else {
-        var value = 0;
-        var remain = (numOfCards * 3);
-    }
 
-    console.log("VALUE: " + value + "." + remain);
+    var value = offer.itemsToReceive.length * 0.333333;
+    if (value === lookForMetal(offer.itemsToGive)) {
+        logThis("My given value: " + lookForMetal(offer.itemsToGive));
+        logThis("Received value: " + offer.itemsToReceive.length * 0.333333);
+        return true;
+    } else {
+        return false;
+    }
 }
-// === END OF TRADING STUFF ===
+
+function lookForMetal(itemsGive) {
+    var value = 0;
+    itemsGive.forEach(item => {
+        // this is an item from TF2, right?
+        if (item.appid === 440) {
+            if (item.name === "Scrap Metal") {
+                value += 0.111111;
+            } else if (item.name === "Reclaimed Metal") {
+                value += 0.333333;
+            } else if (item.name === "Refined Metal") {
+                value += 0.999999;
+            } else {
+                // it's not metal
+                return false;
+            }
+        }
+    });
+    return value;
+}
+
+function errorResponse(sender) {
+    logThis(err);
+    sendMessage(sender, "error... Here's a couple things you can try:");
+    sendMessage(sender, "Cancel your offer and try again");
+    sendMessage(sender, "Wait a few minutes");
+    sendMessage(sender, "contact my dev: https://steamcommunity.com/id/Voter96/");
+}
+
+function acceptTrade(offer, sender) {
+    offer.accept((err, status) => {
+        if (err) {
+            errorResponse(sender);
+        } else {
+            logThis("Trade offer accepted from " + sender);
+            sendMessage(sender, "Donezo! Offer accepted.");
+        }
+    });
+}
