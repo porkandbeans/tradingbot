@@ -18,8 +18,8 @@ function checkMessage(message){
         return 0;
     }
 
-    if(message.startsWith("[tradeoffer")){
-        return "Give me a moment to process this offer...";
+    if (message.startsWith("[tradeoffer ")) {
+        return 1;
     }
 
     if (message.startsWith("!source")) {
@@ -28,6 +28,22 @@ function checkMessage(message){
 
     if (message.startsWith("!about")) {
         return "I am a trading robot. I was built by GoKritz (https://steamcommunity.com/id/Voter96/). At some point in the near future, I will have a website. For now, I am going to be accepting trading cards for .33 and selling them for .44. Hopefully, you will be able to buy and sell TF2/CS:GO/Dota2 items from me using Monero - a privacy-focused cryptocurrency with miniscule transaction fees. This is why I exist. GoKritz wanted to buy TF2 keys for Monero, but there were no vendors. So he made one. Me.";
+    }
+
+    if (message.startsWith("!auth")) {
+        return 2;
+    }
+
+    if (message.startsWith("!sell cards")) {
+        return 3;
+    }
+
+    if (message.startsWith("!dumptf2")) {
+        return 4;
+    }
+
+    if (message.startsWith("!dumpsteam")) {
+        return 5;
     }
 
     if(message == "good robot"){

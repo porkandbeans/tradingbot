@@ -40,6 +40,12 @@ function checkLogExists() {
  * @param message   the message itself
  */
 function logSend(steamid, message) {
+    // write a new log file for today
+    if (logFile != "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt") {
+        logFile = "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt";
+        checkLogExists(); // because it probably doesn't
+    }
+
     fs.appendFile(
         logFile,
         ("sent: " + getDateFormatted(false) + "[" + steamid + "]" + message + "\n"),

@@ -20,6 +20,7 @@ logs.checkLogExists();
 const chat = require('./chat.js');
 
 const config = require('./config.json'); // secrets
+const { off, send } = require('process');
 
 const logOnOptions = {
     // config.json contains confidential information which has been redacted from github
@@ -80,6 +81,10 @@ function sendMessage(steamID, message) {
     client.chatMessage(steamID, message);
 }
 
+/**
+ * log something to the console and to the .txt file
+ * @param content   the contents to be logged (could be a string, an object, something PRINTABLE)
+ */
 function logThis(content) {
     logs.append(content + "\n");
     console.log(content);
@@ -116,12 +121,38 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
             case 0:
                 // !help
                 sendMessage(senderID, "!help - shows this help menu");
+                sendMessage(senderID, "!sell cards - I will (QUICKLY) make you an offer to buy all the cards in your inventory for 0.33 metal");
                 sendMessage(senderID, "!rateme - I will give your steam profile a personalised review");
                 sendMessage(senderID, "!source - view my source code!");
                 sendMessage(senderID, "!about - what am I?");
                 break;
             case 1:
                 //don't actually do anything...
+                break;
+            case 2:
+                // send myself an authentication code for logging in
+                sendMessage(config['my-id'], SteamTotp.generateAuthCode(config['shared-secret']));
+                break;
+            case 3:
+                // offer to buy all the user's trading cards
+                buyCards(senderID);
+                break;
+            case 4:
+                // dump TF2 inventory contents to admin
+                logThis("Dump TF2 request from " + senderID);
+                if (senderID.toString() === config['my-id'])
+                    dumpInventory(440, 2);
+                else
+                    sendMessage(senderID, "You are not my master!");
+                break;
+            case 5:
+                // dump STEAM inventory contents to admin
+                logThis("Dump STEAM request from " + senderID);
+                if (senderID.toString() === config['my-id'])
+                    dumpInventory(753, 6);
+                else
+                    sendMessage(senderID, "You are not my master!");
+                break;
         }
     }else{
         // either I've already decided what the message is, or I just couldn't parse whatever was sent to me
@@ -134,6 +165,211 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
 });
 
 // === TRADING STUFF ===
+
+/**
+ * Buy all the steam trading cards from partner's inventory
+ * @param recipient trade partner
+ */
+function buyCards(recipient) {
+    logThis("now doing a whole lot of stuff to buy cards");
+    var myMetal = [];
+    var theirCards = [];
+    var offer = manager.createOffer(recipient);
+    var cardValue;
+
+    // get the inventories
+    manager.getUserInventoryContents(recipient, 753, 6, true, (err, inventory, currencies) => {
+
+        if (err) {
+            logThis("\n" + err + "\n");
+            sendMessage(recipient, "there was an error opening your inventory.");
+            return;
+        }
+
+        if (inventory.length === 0) {
+            sendMessage(recipient, "Uh oh! looks like your inventory is empty...");
+            return;
+        }
+
+        // add all cards to new array
+        inventory.forEach(item => {
+            var isACard = false;
+            item.tags.forEach(tag => {
+                if (tag.name === "Trading Card") {
+                    isACard = true;
+                }
+            });
+
+            if (isACard) {
+                theirCards.push(item);
+            }
+        });
+
+        cardValue = theirCards.length * 0.333333;
+        logThis("They have " + cardValue + " worth in trading cards");
+        offer.addTheirItems(theirCards);
+    });
+
+    // get the inventories
+    manager.getInventoryContents(440, 2, true, (err, inventory, currencies) => {
+
+        if (err) {
+            logThis("\n" + err + "\n");
+            sendMessage(recipient, "there was an error opening my own inventory.");
+            return;
+        }
+
+        if (inventory.length === 0) {
+            sendMessage(recipient, "Uh oh! looks like my inventory is empty...");
+            return;
+        }
+
+        var metalValue = 0;
+        var escrow = 0;
+
+        // count my total balance
+        inventory.forEach(item => {
+            if (item.name === "Refined Metal") {
+                escrow += 0.999999;
+            } else if (item.name === "Reclaimed Metal") {
+                escrow += 0.333333;
+            } else if (item.name === "Scrap Metal") {
+                escrow += 0.111111;
+            }
+        });
+
+        logThis("My total metal: " + escrow);
+
+        if (escrow >= cardValue) {
+            // I have enough money, start counting out change for the cards
+            var loopBreak = 0
+            while (metalValue < cardValue) {
+                loopBreak = metalValue;
+                logThis("looping to count change - " + metalValue);
+                inventory.forEach(item => {
+                    if (metalValue == cardValue) {
+                        // exit the foreach
+                        return;
+                    } else {
+                        if (metalValue + 0.999999 <= cardValue) {
+                            if (item.name === "Refined Metal") {
+                                myMetal.push(item);
+                                metalValue += 0.999999;
+                            }
+                        } else if (metalValue + 0.333333 <= cardValue) {
+                            if (item.name == "Reclaimed Metal") {
+                                myMetal.push(item);
+                                metalValue += 0.333333;
+                            }
+                        } else if (metalValue < cardValue) {
+                            if (item.name === "Scrap Metal") {
+                                myMetal.push(item);
+                                metalValue += 0.111111;
+                            }
+                        }
+                    }
+                });
+                if (loopBreak == metalValue) {
+                    logThis("un-stucking self from loop");
+                    break;
+                }
+            }
+        } else {
+            logThis("I do not have the metal to cover this trade ");
+            sendMessage(recipient, "Sorry, but I don't have enough metal to cover this trade! You can make a trade offer yourself if you want?");
+            return;
+        }
+        logThis("I have counted out " + metalValue + " metal");
+
+        if (metalValue === cardValue) {
+            // finalize the offer
+            offer.addMyItems(myMetal);
+
+            offer.send((err, status) => {
+                if (err) {
+                    logThis("\n" + err + "\n");
+                    return;
+                } else if (status === "pending") {
+                    community.acceptConfirmationForObject(config['identity-secret'], offer.id, (err) => {
+                        if (err) {
+                            logThis(err);
+                            return;
+                        } else {
+                            sendMessage(recipient, "I have just sent you an offer.");
+                            return;
+                        }
+                    });
+                } else {
+                    sendMessage(recipient, "I have just sent you an offer.");
+                    return;
+                }
+            });
+        } else {
+            // couldn't make an even trade
+            sendMessage(recipient, "Sorry, but i wasn't able to count up the metal for all of your cards for whatever reason. From here, you could try making your own trade offer?");
+            return;
+        }
+
+
+    });
+
+    /*// make sure it worked
+    if (myInventory == null || theirInventory == null) {
+        logThis("error getting inventories!");
+        return;
+    }*/
+
+
+
+}
+
+/**
+ * send all items from my own inventory to GoKritz
+ */
+function dumpInventory(game, context) {
+
+    manager.getInventoryContents(game, context, true, (err, inventory, currencies) => {
+
+
+        if (err) {
+            logThis("\n" + err + "\n");
+            sendMessage(config['my-id'], "there was an error opening my own inventory.");
+            return;
+        }
+
+        if (inventory.length === 0) {
+            sendMessage(config['my-id'], "Uh oh! looks like my inventory is empty...");
+            return;
+        }
+
+        var offer = manager.createOffer(config['my-id']);
+        offer.addMyItems(inventory); // everything
+
+        offer.send((err, status) => {
+            if (err) {
+                sendMessage(config['my-id'], "There was an error sending the trade!");
+                logThis("\n" + err + "\n");
+                return;
+            } else if (status === "pending") {
+                community.acceptConfirmationForObject(config['identity-secret'], offer.id, (err) => {
+                    if (err) {
+                        sendMessage(config['my-id'], "error confirming the trade!");
+                        logThis(err);
+                        return;
+                    } else {
+                        sendMessage(config['my-id'], "I have just sent you all my items.");
+                        return;
+                    }
+                });
+            } else {
+                sendMessage(config['my-id'], "I have just sent you all my items.");
+                return;
+            }
+        });
+
+    });
+}
+
 client.on('webSession', (sessionid, cookies) => {
     console.log("web session");
     community.setCookies(cookies);
@@ -274,18 +510,16 @@ function lookForMetal(itemsGive) {
     return value;
 }
 
-function errorResponse(sender) {
+function errorResponse(sender, err) {
     logThis(err);
-    sendMessage(sender, "error... Here's a couple things you can try:");
-    sendMessage(sender, "Cancel your offer and try again");
-    sendMessage(sender, "Wait a few minutes");
-    sendMessage(sender, "contact my dev: https://steamcommunity.com/id/Voter96/");
+    sendMessage(sender, "There was an error. It could be nothing, but if you are having problems, contact GoKritz: ");
+    sendMessage(sender, "https://steamcommunity.com/id/Voter96/");
 }
 
 function acceptTrade(offer, sender) {
     offer.accept((err, status) => {
         if (err) {
-            errorResponse(sender);
+            errorResponse(sender, err);
         } else {
             logThis("Trade offer accepted from " + sender);
             sendMessage(sender, "Donezo! Offer accepted.");
