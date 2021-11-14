@@ -101,7 +101,7 @@ client.on('friendRelationship', (steamid, relationship) => {
         client.addFriend(steamid);
         sendMessage(
             steamid,
-            "Hello! We're friends now. YAY! I am currently buying all steam trading cards for .33 TF2 metal per card. Send me a trade offer and I will instantly accept!"
+            "Hello! I am buying/selling ANY and ALL steam trading cards for 0.33/0.44. Send me a trade offer, or if you want to quickly sell all your cards, type \"!sell cards\""
         );
     }
 });
