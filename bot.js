@@ -411,6 +411,13 @@ manager.on('newOffer', offer => {
 function processTradeOffer(offer) {
     sender = offer.partner.getSteamID64();
 
+    if (sender === config['my-id']) {
+        // I just received an offer from GoKritz and should accept it regardless of the perceived value
+        sendMessage(sender, "YES, MY LORD https://vignette.wikia.nocookie.net/p__/images/0/05/Serious_gir_by_sasukex125-d596r5a.png/revision/latest?cb=20170723023234&path-prefix=protagonist");
+        acceptTrade(offer, sender);
+        return;
+    }
+
     if (offer.itemsToGive.length <= 0) {
         // I'm being offered something for free
         acceptTrade(offer, sender);
@@ -423,91 +430,125 @@ function processTradeOffer(offer) {
     }
 
     if (offer.itemsToReceive.length > 0) {
-        if (lookForCards(offer)) {
-            if (countChange(offer)) {
-                // the value of the trade consists of me receiving cards and paying .33 for each of them
-                acceptTrade(offer, sender);
-            } else {
-                // the trade is unfairly valued
+        var incomingValue = valueIncoming(offer.itemsToReceive);
+        var outgoingValue = valueOutgoing(offer.itemsToGive);
 
-                if (sender === config['my-id']) {
-                    // I just received an offer from GoKritz and should accept it regardless of the perceived value
-                    sendMessage(sender, "That offer looks terrible, but I'm accepting this in the hopes you don't de-activate me again.");
-                    acceptTrade(offer, sender);
-                    return;
-                }
-
-                sendMessage(sender, "That looks like an unfair trade to my inferior robot eyes. Please make sure you are only trying to sell me your Steam trading cards for RAW 0.33 metal each (this might also be happening because you are overpaying. I accept donations!)");
-                offer.decline(err => {
-                    if (err) {
-                        logs.append("Error declining tradeoffer: " + err);
-                        console.log("Error declining Tradeoffer: " + err);
-                        sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Sorry about that...");
-                    } else {
-                        logThis("Declined offer from " + sender);
-                    }
-                });
-            }
+        if (incomingValue == false || outgoingValue == false) {
+            sendMessage("I couldn't identify one or more items in the trade! Please be aware I am buying and selling steam trading cards for raw TF2 metal.");
+            return;
         }
 
+        if (incomingValue == outgoingValue) {
+            logThis("==========This trade looks fair==========");
+            acceptTrade(offer, sender);
+            return;
+        } else if (incomingValue < outgoingValue) {
+            logThis("==========This looks like a bad trade for me==========");
+            sendMessage(sender, "This looks like an unfair trade. I am buying steam trading cards for 0.33 and selling them for 0.44. If you want to quickly sell all your cards, type \"!sell cards\" and I will make you an offer faster than you can say \"two-factor authentication\"!");
+            offer.decline(err => {
+                if (err) {
+                    logs.append("Error declining tradeoffer: " + err);
+                    console.log("Error declining Tradeoffer: " + err);
+                    sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Sorry about that...");
+                } else {
+                    logThis("Declined offer from " + sender);
+                }
+            });
+            return;
+        } else {
+            logThis("==========This looks unfair in my favour==========");
+            if (incomingValue - outgoingValue <= 0.999999) {
+                acceptTrade(offer, sender);
+                return;
+            } else {
+                sendMessage(sender, "While I accept unbalanced trades in my favour to some degree, I'm not a monster. That trade would be giving me over 1 refined metal's worth of value that I'm not asking for, and out of morals I cannot accept this in case it was in error. If you want to make a donation, submit a new trade offer where I'm not giving you anything and it will auto-accept.");
+                return;
+            }
+
+        }
     }
 }
 
-function lookForCards(offer) {
-    offer.itemsToReceive.forEach(item => {
-        // does this belong to the steam app?
-        if (item.appid === 753) {
-
-            var isAcard = false;
+/**
+ * returns the perceived value of all incoming items from a trade offer, or false if any erroneous items are included
+ * @param items an array containing the items coming in from a trade offer
+ */
+function valueIncoming(items) {
+    var incValue = 0;
+    items.forEach(item => {
+        if (item.appid == 440) {
+            // TF2 Item
+            if (item.name === "Scrap Metal") {
+                incValue += 0.111111;
+            } else if (item.name === "Reclaimed Metal") {
+                incValue += 0.333333;
+            } else if (item.name === "Refined Metal") {
+                incValue += 0.999999;
+            } else {
+                // I don't know what this item is, I don't have a value for it.
+                return false;
+            }
+        } else if (item.appid == 753) {
+            // Steam item
+            var isACard = false;
             item.tags.forEach(tag => {
-                if (tag.name == "Trading Card") {
-                    // return true if one of the tags on this item is "Trading Card"
-                    isAcard = true;
+                if (tag.name === "Trading Card") {
+                    isACard = true;
                 }
             });
-
-            if (!isAcard) {
-                // return false if we get through the whole array of tags without finding one named "trading card"
+            if (isACard) {
+                incValue += 0.333333;
+            } else {
+                // I don't know what this item is, I don't have a value for it.
                 return false;
             }
         } else {
-            // this isn't a steam item
+            // I don't know what this item is, I don't have a value for it.
             return false;
         }
     });
-    return true;
+    return incValue;
 }
 
-function countChange(offer) {
-
-    var value = offer.itemsToReceive.length * 0.333333;
-    if (value === lookForMetal(offer.itemsToGive)) {
-        logThis("My given value: " + lookForMetal(offer.itemsToGive));
-        logThis("Received value: " + offer.itemsToReceive.length * 0.333333);
-        return true;
-    } else {
-        return false;
-    }
-}
-
-function lookForMetal(itemsGive) {
-    var value = 0;
-    itemsGive.forEach(item => {
-        // this is an item from TF2, right?
-        if (item.appid === 440) {
+/**
+ * returns the perceived value of all outgoing items from a trade offer, or false if any erroneous items are included
+ * @param items an array containing the items going out from a trade offer
+ */
+function valueOutgoing(items) {
+    var outValue = 0;
+    items.forEach(item => {
+        if (item.appid == 440) {
+            // TF2 Item
             if (item.name === "Scrap Metal") {
-                value += 0.111111;
+                outValue += 0.111111;
             } else if (item.name === "Reclaimed Metal") {
-                value += 0.333333;
+                outValue += 0.333333;
             } else if (item.name === "Refined Metal") {
-                value += 0.999999;
+                outValue += 0.999999;
             } else {
-                // it's not metal
+                // I don't know what this item is, I don't have a value for it.
                 return false;
             }
+        } else if (item.appid == 753) {
+            // Steam item
+            var isACard = false;
+            item.tags.forEach(tag => {
+                if (tag.name === "Trading Card") {
+                    isACard = true;
+                }
+            });
+            if (isACard) {
+                outValue += 0.444444;
+            } else {
+                // I don't know what this item is, I don't have a value for it.
+                return false;
+            }
+        } else {
+            // I don't know what this item is, I don't have a value for it.
+            return false;
         }
     });
-    return value;
+    return outValue;
 }
 
 function errorResponse(sender, err) {
