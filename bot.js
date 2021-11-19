@@ -14,6 +14,17 @@ const manager = new TradeOfferManager({
     language: 'en'
 });
 
+const ignoreList = require('./ignoreList.json');
+
+const WEPLOW = 1;
+const WEPHIGH = 2;
+const SCRAP = 2;
+const REC = 6;
+const REF = 18;
+
+const CARDLOW = 6;
+const CARDHIGH = 8;
+
 var logs = require("./logging.js");
 logs.checkLogExists();
 
@@ -38,7 +49,6 @@ client.on('loggedOn', () => {
     client.gamesPlayed(440) // set status to playing TF2
 });
 
-// === TRADING STUFF ===
 client.on('webSession', (sessionid, cookies) => {
     console.log("web session");
     community.setCookies(cookies);
@@ -52,24 +62,6 @@ client.on('webSession', (sessionid, cookies) => {
 
     community.startConfirmationChecker(10000, config['identity-secret']);
 });
-
-manager.on('newOffer', offer => {
-    console.log("new offer");
-    if (offer.partner.getSteamID64() === config['my-id']) {
-        console.log("received offer...");
-        offer.accept((err, status) => {
-            if (err) {
-                console.log(err);
-            } else {
-                console.log(`Accepted offer. Status: ${status}.`);
-            }
-        });
-    } else {
-        console.log("not master");
-    }
-});
-// === END OF TRADING STUFF ===
-
 
 /**
   sends a message to a user and records it in the logs directory
@@ -164,8 +156,6 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
     }
 });
 
-// === TRADING STUFF ===
-
 /**
  * Buy all the steam trading cards from partner's inventory
  * @param recipient trade partner
@@ -205,7 +195,7 @@ function buyCards(recipient) {
             }
         });
 
-        cardValue = theirCards.length * 0.333333;
+        cardValue = theirCards.length * CARDLOW;
         logThis("They have " + cardValue + " worth in trading cards");
         offer.addTheirItems(theirCards);
     });
@@ -230,11 +220,11 @@ function buyCards(recipient) {
         // count my total balance
         inventory.forEach(item => {
             if (item.name === "Refined Metal") {
-                escrow += 0.999999;
+                escrow += REF;
             } else if (item.name === "Reclaimed Metal") {
-                escrow += 0.333333;
+                escrow += REC;
             } else if (item.name === "Scrap Metal") {
-                escrow += 0.111111;
+                escrow += SCRAP;
             }
         });
 
@@ -251,20 +241,20 @@ function buyCards(recipient) {
                         // exit the foreach
                         return;
                     } else {
-                        if (metalValue + 0.999999 <= cardValue) {
+                        if (metalValue + REF <= cardValue) {
                             if (item.name === "Refined Metal") {
                                 myMetal.push(item);
-                                metalValue += 0.999999;
+                                metalValue += REF;
                             }
-                        } else if (metalValue + 0.333333 <= cardValue) {
+                        } else if (metalValue + REC <= cardValue) {
                             if (item.name == "Reclaimed Metal") {
                                 myMetal.push(item);
-                                metalValue += 0.333333;
+                                metalValue += REC;
                             }
                         } else if (metalValue < cardValue) {
                             if (item.name === "Scrap Metal") {
                                 myMetal.push(item);
-                                metalValue += 0.111111;
+                                metalValue += SCRAP;
                             }
                         }
                     }
@@ -312,15 +302,6 @@ function buyCards(recipient) {
 
 
     });
-
-    /*// make sure it worked
-    if (myInventory == null || theirInventory == null) {
-        logThis("error getting inventories!");
-        return;
-    }*/
-
-
-
 }
 
 /**
@@ -384,6 +365,9 @@ client.on('webSession', (sessionid, cookies) => {
     community.startConfirmationChecker(10000, config['identity-secret']);
 });
 
+/**
+ * This is fired whenever I am sent a new trade offer
+ */
 manager.on('newOffer', offer => {
 
     // TRADING CARD PROPERTIES TO LOOK FOR
@@ -398,10 +382,16 @@ manager.on('newOffer', offer => {
     logThis("PARTNER: " + offer.partner.getSteamID64() + "\n");
 
     offer.itemsToReceive.forEach(i => {
-        logThis("RECEIVE - id: " + i.id + " name: " + i.name + " contextid: " + i.contextid + " appid: " + i.appid + "\n");
+        logThis("RECEIVE - id: " + i.id + " name: " + i.name + " contextid: " + i.contextid + " appid: " + i.appid + " tags: " + i.tags);
+        i.tags.forEach(tag => {
+            logThis("       tag: " + tag.name);
+        });
     });
     offer.itemsToGive.forEach(x => {
-        logThis("GIVE - id: " + x.id + " name: " + x.name + " contextid: " + x.contextid + " appid: " + x.appid + "\n");
+        logThis("GIVE - id: " + x.id + " name: " + x.name + " contextid: " + x.contextid + " appid: " + x.appid);
+        x.tags.forEach(tag => {
+            logThis("       tag: " + tag.name);
+        });
     });
 
     processTradeOffer(offer);
@@ -422,42 +412,35 @@ function processTradeOffer(offer) {
         // I'm being offered something for free
         acceptTrade(offer, sender);
         logThis("DONATION FROM " + sender);
-        offer.itemsToReceive.forEach(item => {
-            logThis(item.name);
-        });
         sendMessage(sender, "Thank you for the generous donation! <3");
         return;
     }
 
     if (offer.itemsToReceive.length > 0) {
-        var incomingValue = valueIncoming(offer.itemsToReceive);
-        var outgoingValue = valueOutgoing(offer.itemsToGive);
+        var incomingValue = valueItems(offer.itemsToReceive, false);
+        var outgoingValue = valueItems(offer.itemsToGive, true);
 
-        if (incomingValue == false || outgoingValue == false) {
-            sendMessage("I couldn't identify one or more items in the trade! Please be aware I am buying and selling steam trading cards for raw TF2 metal.");
+        if (incomingValue === false || outgoingValue === false) {
+            sendMessage(sender, "I couldn't identify one or more items in the trade! Please be aware I am buying and selling steam trading cards for raw TF2 metal.");
+            declineOffer(offer, sender);
             return;
         }
 
         if (incomingValue == outgoingValue) {
             logThis("==========This trade looks fair==========");
+            logThis("incoming: " + incomingValue + " outgoing: " + outgoingValue);
             acceptTrade(offer, sender);
             return;
         } else if (incomingValue < outgoingValue) {
             logThis("==========This looks like a bad trade for me==========");
+            logThis("incoming: " + incomingValue + " outgoing: " + outgoingValue);
             sendMessage(sender, "This looks like an unfair trade. I am buying steam trading cards for 0.33 and selling them for 0.44. If you want to quickly sell all your cards, type \"!sell cards\" and I will make you an offer faster than you can say \"two-factor authentication\"!");
-            offer.decline(err => {
-                if (err) {
-                    logs.append("Error declining tradeoffer: " + err);
-                    console.log("Error declining Tradeoffer: " + err);
-                    sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Sorry about that...");
-                } else {
-                    logThis("Declined offer from " + sender);
-                }
-            });
+            declineOffer(offer, sender);
             return;
         } else {
             logThis("==========This looks unfair in my favour==========");
-            if (incomingValue - outgoingValue <= 0.999999) {
+            logThis("incoming: " + incomingValue + " outgoing: " + outgoingValue);
+            if (incomingValue - outgoingValue <= REF) {
                 acceptTrade(offer, sender);
                 return;
             } else {
@@ -469,65 +452,57 @@ function processTradeOffer(offer) {
     }
 }
 
-/**
- * returns the perceived value of all incoming items from a trade offer, or false if any erroneous items are included
- * @param items an array containing the items coming in from a trade offer
- */
-function valueIncoming(items) {
-    var incValue = 0;
-    items.forEach(item => {
-        if (item.appid == 440) {
-            // TF2 Item
-            if (item.name === "Scrap Metal") {
-                incValue += 0.111111;
-            } else if (item.name === "Reclaimed Metal") {
-                incValue += 0.333333;
-            } else if (item.name === "Refined Metal") {
-                incValue += 0.999999;
-            } else {
-                // I don't know what this item is, I don't have a value for it.
-                return false;
-            }
-        } else if (item.appid == 753) {
-            // Steam item
-            var isACard = false;
-            item.tags.forEach(tag => {
-                if (tag.name === "Trading Card") {
-                    isACard = true;
-                }
-            });
-            if (isACard) {
-                incValue += 0.333333;
-            } else {
-                // I don't know what this item is, I don't have a value for it.
-                return false;
-            }
-        } else {
-            // I don't know what this item is, I don't have a value for it.
-            return false;
-        }
-    });
-    return incValue;
-}
 
 /**
- * returns the perceived value of all outgoing items from a trade offer, or false if any erroneous items are included
- * @param items an array containing the items going out from a trade offer
+ * returns the perceived value of all incoming or outgoing items from a trade offer, or false if any erroneous items are included
+ * @param items an array containing the items coming in from a trade offer
+ * @param outgoing  is this my trade window, or theirs?
  */
-function valueOutgoing(items) {
-    var outValue = 0;
+function valueItems(items, outgoing) {
+    var tradeValue = 0; // the total value of the trade for this user (either going in or out)
+
+    var anomaly = false; // if this is true at the end of the function, return false and tell the partner that I don't know WTF that is and I'm not doing it
+
     items.forEach(item => {
+
+        // ignore items from this list
+        ignoreList.ignores.forEach(word => {
+            if (item.name === word) {
+                anomaly = true;
+                return;
+            }
+        });
+
         if (item.appid == 440) {
+
             // TF2 Item
             if (item.name === "Scrap Metal") {
-                outValue += 0.111111;
+                tradeValue += SCRAP;
             } else if (item.name === "Reclaimed Metal") {
-                outValue += 0.333333;
+                tradeValue += REC;
             } else if (item.name === "Refined Metal") {
-                outValue += 0.999999;
+                tradeValue += REF;
             } else {
-                // I don't know what this item is, I don't have a value for it.
-                return false;
+                //var isUnique = false;
+                var isWeapon = false;
+
+                ignoreList.weapons.forEach(name => {
+                    if (item.name === name) {
+                        isWeapon = true;
+                        if (outgoing) {
+                            tradeValue += WEPHIGH;
+                        } else {
+                            tradeValue += WEPLOW;
+                        }
+                        return; // out of the forEach
+                    }
+                });
+
+                if (!isWeapon) {
+                    // I don't know what this item is, I don't have a value for it.
+                    anomaly = true;
+                    return;
+                }
             }
         } else if (item.appid == 753) {
             // Steam item
@@ -538,17 +513,28 @@ function valueOutgoing(items) {
                 }
             });
             if (isACard) {
-                outValue += 0.444444;
+                if (outgoing) {
+                    tradeValue += CARDHIGH;
+                } else {
+                    tradeValue += CARDLOW;
+                }
+
             } else {
                 // I don't know what this item is, I don't have a value for it.
-                return false;
+                anomaly = true;
+                return;
             }
         } else {
             // I don't know what this item is, I don't have a value for it.
-            return false;
+            anomaly = true;
+            return;
         }
     });
-    return outValue;
+    if (anomaly) {
+        return false;
+    } else {
+        return tradeValue;
+    }
 }
 
 function errorResponse(sender, err) {
@@ -564,6 +550,19 @@ function acceptTrade(offer, sender) {
         } else {
             logThis("Trade offer accepted from " + sender);
             sendMessage(sender, "Donezo! Offer accepted.");
+        }
+    });
+}
+
+function declineOffer(offer, sender) {
+    offer.decline(err => {
+        if (err) {
+            logs.append("Error declining tradeoffer: " + err);
+            console.log("Error declining Tradeoffer: " + err);
+            sendMessage(sender, "I tried to decline your offer, but then an error happened. You may want to cancel it. Sorry about that...");
+        } else {
+            logThis("Declined offer from " + sender);
+            sendMessage(sender, "I have declined the offer.");
         }
     });
 }

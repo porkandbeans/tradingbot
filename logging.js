@@ -1,6 +1,6 @@
 
 const fs = require("fs");
-const d = new Date();
+var d = new Date();
 
 logDir = "./logs"
 logFile = "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt";
@@ -41,6 +41,7 @@ function checkLogExists() {
  */
 function logSend(steamid, message) {
     // write a new log file for today
+    updateDate();
     if (logFile != "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt") {
         logFile = "logs/" + d.getFullYear() + "_" + (d.getMonth() + 1) + "_" + d.getDate() + ".txt";
         checkLogExists(); // because it probably doesn't
@@ -100,6 +101,12 @@ function append(comment){
         if (err) throw err;
         console.log(comment);
     })
+}
+/**
+ * reinstance the date variable
+*/
+function updateDate() {
+    d = new Date();
 }
 
 module.exports = {
