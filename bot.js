@@ -5,7 +5,7 @@ const fs = require("fs"); // writing logs
 const d = new Date(); // also for writing logs, pretty much.
 const SteamCommunity = require('steamcommunity');
 const TradeOfferManager = require('steam-tradeoffer-manager');
-
+//https://www.youtube.com/watch?v=-whuXHSL1Pg
 const client = new SteamUser();
 const community = new SteamCommunity();
 const manager = new TradeOfferManager({
@@ -16,7 +16,7 @@ const manager = new TradeOfferManager({
 
 const ignoreList = require('./ignoreList.json');
 
-const WEPLOW = 1;looping to count change - 
+const WEPLOW = 1;
 const WEPHIGH = 2;
 const SCRAP = 2;
 const REC = SCRAP * 3;
@@ -275,43 +275,69 @@ function buyKeys(recipient, numKeys){
         logThis("My total metal: " + escrow);
 
         if (escrow >= keyValue) {
-            // I have enough money, start counting out change for the keys
+
+            var itemIDs = [];
+            var cancel = false;
+            var favour = 3; // 3 = ref, 2 = rec, 1 = scrap
             var loopBreak = 0
+            var stuck = false;
+            
             while (metalValue < keyValue) {
                 loopBreak = metalValue;
                 logThis("LOOP START: " + metalValue);
+
                 inventory.forEach(item => {
-                    if (metalValue === keyValue) {
-                        // exit the foreach
-                        return;
-                    } else {
-                        if (metalValue + REF <= keyValue) {
+                    cancel = false;
+
+                    itemIDs.forEach(element =>{
+                        if(item.id == element){
+                            cancel = true;
+                            return;
+                        }
+                    });
+                    
+                    if(metalValue < keyValue && !cancel){ // because we're still forEaching the inventory, but not yet out of the loop
+                        if (favour == 3) {
+                            logThis("looking for ref...");
                             if (item.name === "Refined Metal") {
+                                itemIDs.push(item.id);
                                 myMetal.push(item);
                                 metalValue += REF;
                                 logThis("Loop report: " + metalValue);
                             }
-                        } else if (metalValue + REC <= keyValue) {
-                            if (item.name == "Reclaimed Metal") {
+                        } else if (favour == 2) {
+                            logThis("looking for rec...");
+                            if (item.name === "Reclaimed Metal") {
+                                itemIDs.push(item.id);
                                 myMetal.push(item);
                                 metalValue += REC;
                                 logThis("Loop report: " + metalValue);
                             }
-                        } else if (metalValue < keyValue) {
+                        } else if (favour == 1) {
+                            logThis("looking for scrap...");
                             if (item.name === "Scrap Metal") {
+                                itemIDs.push(item.id);
                                 myMetal.push(item);
                                 metalValue += SCRAP;
                                 logThis("Loop report: " + metalValue);
                             }
                         }
                     }
-                });
-                if (loopBreak == metalValue) {
-                    logThis("un-stucking self from loop");
-                    break;
-                }
+
+                }); // end of inventory foreach
 
                 
+                if (loopBreak == metalValue) {
+                    logThis("Loop break!");
+
+                    favour--;
+                    logThis(favour);
+
+                    if(favour <= 0){
+                        logThis("un-stucking self from loop");
+                        break;
+                    }
+                }
             }
         } else {
             logThis("I do not have the metal to cover this trade. Key price: " + keyValue + " my metal: " + escrow);
