@@ -46,6 +46,11 @@ function checkMessage(message){
         return 5;
     }
 
+    if (message.startsWith("!sell keys ")){
+        var keyNum = message.substr(10, message.length - 1);
+        return ("$buy" + keyNum);
+    }
+
     if(message == "good robot"){
         return "<3";
     }
