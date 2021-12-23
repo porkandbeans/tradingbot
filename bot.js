@@ -275,8 +275,9 @@ function buyKeys(recipient, numKeys){
         logThis("My total metal: " + escrow);
 
         if (escrow >= keyValue) {
+            logThis("I have enough for this trade");
 
-            var itemIDs = [];
+            var itemIDs = [];   
             var cancel = false;
             var favour = 3; // 3 = ref, 2 = rec, 1 = scrap
             var loopBreak = 0
