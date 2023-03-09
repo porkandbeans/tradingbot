@@ -772,6 +772,7 @@ function acceptTrade(offer, sender) {
         } else {
             logThis("Trade offer accepted from " + sender);
             sendMessage(sender, "Donezo! Offer accepted.");
+            sendMessage(config['my-id'], "a trade just happened");
         }
     });
 }
