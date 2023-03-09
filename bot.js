@@ -615,12 +615,12 @@ manager.on('newOffer', offer => {
 function processTradeOffer(offer) {
     sender = offer.partner.getSteamID64();
 
-    // if (sender === config['my-id']) {
-    // // I just received an offer from GoKritz and should accept it regardless of the perceived value
-    //     sendMessage(sender, "YES, MY LORD https://vignette.wikia.nocookie.net/p__/images/0/05/Serious_gir_by_sasukex125-d596r5a.png/revision/latest?cb=20170723023234&path-prefix=protagonist");
-    //     acceptTrade(offer, sender);
-    //     return;
-    // }
+    if (sender === config['my-id']) {
+    // I just received an offer from GoKritz and should accept it regardless of the perceived value
+        sendMessage(sender, "YES, MY LORD https://vignette.wikia.nocookie.net/p__/images/0/05/Serious_gir_by_sasukex125-d596r5a.png/revision/latest?cb=20170723023234&path-prefix=protagonist");
+        acceptTrade(offer, sender);
+        return;
+    }
 
     if (offer.itemsToGive.length <= 0) {
         // I'm being offered something for free
