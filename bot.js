@@ -25,9 +25,9 @@ const REF = REC * 3;
 const CARDLOW = 6;
 const CARDHIGH = 8;
 
-// === KEY PRICES ===
-const KEYLOW = (REF * 64) + (REC * 2); // 64.66
-const KEYHIGH =  (REF * 64) + (REC * 2) + (SCRAP); // 64.88
+// // === KEY PRICES ===
+// const KEYLOW = (REF * 64) + (REC * 2); // 64.66
+// const KEYHIGH =  (REF * 64) + (REC * 2) + (SCRAP); // 64.88
 
 var logs = require("./logging.js");
 logs.checkLogExists();
@@ -118,7 +118,7 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
                 // !help
                 sendMessage(senderID, "!help - shows this help menu");
                 sendMessage(senderID, "!sell cards - I will (QUICKLY) make you an offer to buy all the cards in your inventory for 0.33 metal");
-                sendMessage(senderID, "!sell keys X - replace X with the number of keys you wish to sell (for example, !sell keys 1)")
+                // sendMessage(senderID, "!sell keys X - replace X with the number of keys you wish to sell (for example, !sell keys 1)")
                 sendMessage(senderID, "!rateme - I will give your steam profile a personalised review");
                 sendMessage(senderID, "!source - view my source code!");
                 sendMessage(senderID, "!about - what am I?");
@@ -157,7 +157,8 @@ client.on('friendOrChatMessage', (senderID, receivedMessage, room) => {
             
             if(response.startsWith("$buy")){
                 var keyNum = parseInt(response.substr(4, response.length - 1));
-                buyKeys(senderID, keyNum);
+                // buyKeys(senderID, keyNum);
+                sendMessage(senderID, "Sorry but I'm not trading keys at the moment");
             }else{
                 // either I've already decided what the message is, or I just couldn't parse whatever was sent to me
                 sendMessage(senderID, response)
@@ -194,189 +195,188 @@ function getUserInit(recipient, inventory, err){
  * @param {*} recipient them
  * @param {*} numKeys   number of keys I am buying from them
  */
-function buyKeys(recipient, numKeys){
-    if(numKeys === 0){
-        sendMessage(recipient, "Sorry! it has to be a value greater than 0.");
-        return;
-    }
+// function buyKeys(recipient, numKeys){
+//     if(numKeys === 0){
+//         sendMessage(recipient, "Sorry! it has to be a value greater than 0.");
+//         return;
+//     }
 
-    logThis("buying keys: " + numKeys + "\nKeyprice: " + KEYLOW);
+//     logThis("buying keys: " + numKeys + "\nKeyprice: " + KEYLOW);
 
-    var cancel = false;
+//     var cancel = false;
 
-    var targetKeys = numKeys;
+//     var targetKeys = numKeys;
     
-    var myMetal = [];
-    var theirKeys = [];
+//     var myMetal = [];
+//     var theirKeys = [];
     
-    var keyCount = 0;
-    var keyValue = 0;
+//     var keyCount = 0;
+//     var keyValue = 0;
 
-    //make a new trade offer
-    var offer = manager.createOffer(recipient);
+//     //make a new trade offer
+//     var offer = manager.createOffer(recipient);
 
-    manager.getUserInventoryContents(recipient, 440, 2, true, (err, inventory, currenies) => {
-        getUserInit(recipient, inventory, err);
+//     manager.getUserInventoryContents(recipient, 440, 2, true, (err, inventory, currenies) => {
+//         getUserInit(recipient, inventory, err);
 
-        // add their keys to the array
-        inventory.forEach(item => {
-            if(keyCount < targetKeys){
-                if(item.name === "Mann Co. Supply Crate Key"){
-                    keyCount++;
-                    theirKeys.push(item);
-                    keyValue += KEYLOW;
-                }
-            }else{
-                // get out of the foreach early
-                return;
-            }
-        });
+//         // add their keys to the array
+//         inventory.forEach(item => {
+//             if(keyCount < targetKeys){
+//                 if(item.name === "Mann Co. Supply Crate Key"){
+//                     keyCount++;
+//                     theirKeys.push(item);
+//                     keyValue += KEYLOW;
+//                 }
+//             }else{
+//                 // get out of the foreach early
+//                 return;
+//             }
+//         });
 
-        if(keyCount < targetKeys){
-            sendMessage(recipient, "You do not have enough keys!");
-            logThis("recipient does not have keys");
-            cancel = true;
-            return;
-        }
+//         if(keyCount < targetKeys){
+//             sendMessage(recipient, "You do not have enough keys!");
+//             logThis("recipient does not have keys");
+//             cancel = true;
+//             return;
+//         }
 
-        offer.addTheirItems(theirKeys);
-    });
+//         offer.addTheirItems(theirKeys);
+//     });
 
-    if(cancel){
-        return;
-    }
+//     if(cancel){
+//         return;
+//     }
 
-    manager.getInventoryContents(440, 2, true, (err, inventory, currencies) => {
-        if (err) {
-            logThis(err);
-            sendMessage(recipient, "there was an error opening my own inventory.");
-            return;
-        }
+//     manager.getInventoryContents(440, 2, true, (err, inventory, currencies) => {
+//         if (err) {
+//             logThis(err);
+//             sendMessage(recipient, "there was an error opening my own inventory.");
+//             return;
+//         }
 
-        if (inventory.length === 0) {
-            sendMessage(recipient, "Uh oh! looks like my inventory is empty...");
-            return;
-        }
+//         if (inventory.length === 0) {
+//             sendMessage(recipient, "Uh oh! looks like my inventory is empty...");
+//             return;
+//         }
 
-        var metalValue = 0;
-        var escrow = 0;
+//         var metalValue = 0;
+//         var escrow = 0;
 
-        // count my total balance
-        inventory.forEach(item => {
-            if (item.name === "Refined Metal") {
-                escrow += REF;
-            } else if (item.name === "Reclaimed Metal") {
-                escrow += REC;
-            } else if (item.name === "Scrap Metal") {
-                escrow += SCRAP;
-            }
-        });
+//         // count my total balance
+//         inventory.forEach(item => {
+//             if (item.name === "Refined Metal") {
+//                 escrow += REF;
+//             } else if (item.name === "Reclaimed Metal") {
+//                 escrow += REC;
+//             } else if (item.name === "Scrap Metal") {
+//                 escrow += SCRAP;
+//             }
+//         });
 
-        logThis("My total metal: " + escrow);
+//         logThis("My total metal: " + escrow);
 
-        if (escrow >= keyValue) {
-            logThis("I have enough for this trade");
+//         if (escrow >= keyValue) {
+//             logThis("I have enough for this trade");
 
-            var itemIDs = [];   
-            var cancel = false;
-            var favour = 3; // 3 = ref, 2 = rec, 1 = scrap
-            var loopBreak = 0
-            var stuck = false;
+//             var itemIDs = [];   
+//             var cancel = false;
+//             var favour = 3; // 3 = ref, 2 = rec, 1 = scrap
+//             var loopBreak = 0
+//             //var stuck = false;
             
-            while (metalValue < keyValue) {
-                loopBreak = metalValue;
-                logThis("LOOP START: " + metalValue);
+//             while (metalValue < keyValue) {
+//                 loopBreak = metalValue;
+//                 logThis("LOOP START: " + metalValue);
 
-                inventory.forEach(item => {
-                    cancel = false;
+//                 inventory.forEach(item => {
+//                     cancel = false;
 
-                    itemIDs.forEach(element =>{
-                        if(item.id == element){
-                            cancel = true;
-                            return;
-                        }
-                    });
+//                     itemIDs.forEach(element =>{
+//                         if(item.id == element){
+//                             cancel = true;
+//                             return;
+//                         }
+//                     });
                     
-                    if(metalValue < keyValue && !cancel){ // because we're still forEaching the inventory, but not yet out of the loop
-                        if (favour == 3) {
-                            logThis("looking for ref...");
-                            if (item.name === "Refined Metal") {
-                                itemIDs.push(item.id);
-                                myMetal.push(item);
-                                metalValue += REF;
-                                logThis("Loop report: " + metalValue);
-                            }
-                        } else if (favour == 2) {
-                            logThis("looking for rec...");
-                            if (item.name === "Reclaimed Metal") {
-                                itemIDs.push(item.id);
-                                myMetal.push(item);
-                                metalValue += REC;
-                                logThis("Loop report: " + metalValue);
-                            }
-                        } else if (favour == 1) {
-                            logThis("looking for scrap...");
-                            if (item.name === "Scrap Metal") {
-                                itemIDs.push(item.id);
-                                myMetal.push(item);
-                                metalValue += SCRAP;
-                                logThis("Loop report: " + metalValue);
-                            }
-                        }
-                    }
+//                     if(metalValue < keyValue && !cancel){ // because we're still forEaching the inventory, but not yet out of the loop
+//                         if (favour == 3) {
+//                             logThis("looking for ref...");
+//                             if (item.name === "Refined Metal") {
+//                                 itemIDs.push(item.id);
+//                                 myMetal.push(item);
+//                                 metalValue += REF;
+//                             }
+//                         } else if (favour == 2) {
+//                             logThis("looking for rec...");
+//                             if (item.name === "Reclaimed Metal") {
+//                                 itemIDs.push(item.id);
+//                                 myMetal.push(item);
+//                                 metalValue += REC;
+//                             }
+//                         } else if (favour == 1) {
+//                             logThis("looking for scrap...");
+//                             if (item.name === "Scrap Metal") {
+//                                 itemIDs.push(item.id);
+//                                 myMetal.push(item);
+//                                 metalValue += SCRAP;
+//                             }
+//                         }
+//                     }
 
-                }); // end of inventory foreach
+//                     logThis("Foreach report - metal value: " + metalValue + ", favour: " + favour);
+
+//                 }); // end of inventory foreach
 
                 
-                if (loopBreak == metalValue) {
-                    logThis("Loop break!");
+//                 if (loopBreak == metalValue) {
+//                     logThis("Loop break!");
 
-                    favour--;
-                    logThis(favour);
+//                     favour--;
+//                     logThis(favour);
 
-                    if(favour <= 0){
-                        logThis("un-stucking self from loop");
-                        break;
-                    }
-                }
-            }
-        } else {
-            logThis("I do not have the metal to cover this trade. Key price: " + keyValue + " my metal: " + escrow);
-            sendMessage(recipient, "Sorry, but I don't have enough metal to cover this trade! You can make a trade offer yourself if you want?");
-            return;
-        }
-        logThis("I have counted out " + metalValue + " metal");
+//                     if(favour <= 0){
+//                         logThis("un-stucking self from loop");
+//                         break;
+//                     }
+//                 }
+//             }
+//         } else {
+//             logThis("I do not have the metal to cover this trade. Key price: " + keyValue + " my metal: " + escrow);
+//             sendMessage(recipient, "Sorry, but I don't have enough metal to cover this trade! You can make a trade offer yourself if you want?");
+//             return;
+//         }
+//         logThis("I have counted out " + metalValue + " metal");
 
-        if (metalValue === keyValue) {
-            // finalize the offer
-            offer.addMyItems(myMetal);
+//         if (metalValue === keyValue) {
+//             // finalize the offer
+//             offer.addMyItems(myMetal);
 
-            offer.send((err, status) => {
-                if (err) {
-                    logThis("\n" + err + "\n");
-                    return;
-                } else if (status === "pending") {
-                    community.acceptConfirmationForObject(config['identity-secret'], offer.id, (err) => {
-                        if (err) {
-                            logThis(err);
-                            return;
-                        } else {
-                            sendMessage(recipient, "I have just sent you an offer.");
-                            return;
-                        }
-                    });
-                } else {
-                    sendMessage(recipient, numKeys + " keys - " + (KEYLOW / REF));
-                    return;
-                }
-            });
-        } else {
-            // couldn't make an even trade
-            sendMessage(recipient, "Sorry, but i wasn't able to count up the metal for all of your cards for whatever reason. From here, you could try making your own trade offer?");
-            return;
-        }
-    });
-}
+//             offer.send((err, status) => {
+//                 if (err) {
+//                     logThis("\n" + err + "\n");
+//                     return;
+//                 } else if (status === "pending") {
+//                     community.acceptConfirmationForObject(config['identity-secret'], offer.id, (err) => {
+//                         if (err) {
+//                             logThis(err);
+//                             return;
+//                         } else {
+//                             sendMessage(recipient, "I have just sent you an offer.");
+//                             return;
+//                         }
+//                     });
+//                 } else {
+//                     sendMessage(recipient, numKeys + " keys - " + (KEYLOW / REF));
+//                     return;
+//                 }
+//             });
+//         } else {
+//             // couldn't make an even trade
+//             sendMessage(recipient, "Sorry, but i wasn't able to count up the metal for all of your cards for whatever reason. From here, you could try making your own trade offer?");
+//             return;
+//         }
+//     });
+// }
 
 /**
  * Buy all the steam trading cards from partner's inventory
@@ -615,12 +615,12 @@ manager.on('newOffer', offer => {
 function processTradeOffer(offer) {
     sender = offer.partner.getSteamID64();
 
-    if (sender === config['my-id']) {
-    /**     // I just received an offer from GoKritz and should accept it regardless of the perceived value
-        sendMessage(sender, "YES, MY LORD https://vignette.wikia.nocookie.net/p__/images/0/05/Serious_gir_by_sasukex125-d596r5a.png/revision/latest?cb=20170723023234&path-prefix=protagonist");
-        acceptTrade(offer, sender);
-        return;
-    }*/
+    // if (sender === config['my-id']) {
+    // // I just received an offer from GoKritz and should accept it regardless of the perceived value
+    //     sendMessage(sender, "YES, MY LORD https://vignette.wikia.nocookie.net/p__/images/0/05/Serious_gir_by_sasukex125-d596r5a.png/revision/latest?cb=20170723023234&path-prefix=protagonist");
+    //     acceptTrade(offer, sender);
+    //     return;
+    // }
 
     if (offer.itemsToGive.length <= 0) {
         // I'm being offered something for free
@@ -635,7 +635,7 @@ function processTradeOffer(offer) {
         var outgoingValue = valueItems(offer.itemsToGive, true);
 
         if (incomingValue === false || outgoingValue === false) {
-            sendMessage(sender, "I couldn't identify one or more items in the trade! Please be aware I am buying and selling steam trading cards for raw TF2 metal.");
+            sendMessage(sender, "I couldn't identify one or more items in the trade!");
             declineOffer(offer, sender);
             return;
         }
@@ -658,14 +658,14 @@ function processTradeOffer(offer) {
                 acceptTrade(offer, sender);
                 return;
             } else {
-                sendMessage(sender, "While I accept unbalanced trades in my favour to some degree, I'm not a monster. That trade would be giving me over 1 refined metal's worth of value that I'm not asking for, and out of morals I cannot accept this in case it was in error. If you want to make a donation, submit a new trade offer where I'm not giving you anything and it will auto-accept.");
+                sendMessage(sender, "That trade is highly imbalanced in my favour. Submit a trade where I give you nothing in exchange for items to make a donation!");
                 return;
             }
 
         }
     }
 }
-}
+
 
 
 /**
@@ -691,14 +691,14 @@ function valueItems(items, outgoing) {
         if (item.appid == 440) {
 
             // TF2 Item
-            if(item.name === "Mann Co. Supply Crate Key"){
-                if(outgoing){
-                    tradeValue += KEYHIGH;
-                }else{
-                    tradeValue += KEYLOW;
-                }
-            }
-            else if (item.name === "Scrap Metal") {
+            // if(item.name === "Mann Co. Supply Crate Key"){
+            //     if(outgoing){
+            //         tradeValue += KEYHIGH;
+            //     }else{
+            //         tradeValue += KEYLOW;
+            //     }
+            // }
+            if (item.name === "Scrap Metal") {
                 tradeValue += SCRAP;
             } else if (item.name === "Reclaimed Metal") {
                 tradeValue += REC;
